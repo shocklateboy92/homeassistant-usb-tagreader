@@ -4,6 +4,8 @@ Like [adonno's](https://github.com/adonno/tagreader) tagreader component, but wi
 
 You can use it to build a similar [NFC Jukebox with Home Assistant](https://www.home-assistant.io/integrations/tag/) but without having to solder or 3D print anything 😁.
 
+**UPDATE:** It turns out this does not work on Debian Trixie (because it ships with a newer version of `pcscd`). Stick with Debian Bookworm (12) until I have time to update. If using RaspberryPi OS, grab the [Legacy](https://www.raspberrypi.com/software/operating-systems/#raspberry-pi-os-legacy-64-bit) version.
+
 ## Background
 
 I created an NFC Jukebox with Home Assistant using [adonno's](https://github.com/adonno/tagreader) tagreader component, but unfortunately it broke 😢.
