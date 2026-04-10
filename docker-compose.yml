@@ -2,10 +2,11 @@ version: '3.8'
 
 services:
   nfc-reader:
-    image: ghcr.io/shocklateboy92/homeassistant-usb-tagreader:main
+    image: registry.apps.lasath.com/nfc-reader:latest
     container_name: nfc-reader
+    privileged: true  # Required for USB device access by pcscd
     volumes:
-      - /run/pcscd:/run/pcscd  # Mount PCSC socket from host
+      - /dev/bus/usb:/dev/bus/usb  # Pass through USB devices
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1  # Ensure Python output is not buffered

@@ -1,1 +1,1 @@
-- This is inside a debian devcontainer. Any tools you need can be installed. Sudo does not require a password.
+- This is running on an Arch Linux machine. Use `sudo pacman` to install any devtools needed. Sudo does not require a password.

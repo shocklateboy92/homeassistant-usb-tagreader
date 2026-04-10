@@ -7,10 +7,12 @@ FROM python:${PYTHON_RELEASE}${PYTHON_VARIANT:+-$PYTHON_VARIANT}
 ARG DEV_MODE=false
 ARG PYTHON_RELEASE
 
-# Install system dependencies for PCSC (client libraries only)
+# Install system dependencies for PCSC (daemon + client libraries + CCID driver)
 RUN apt-get update && apt-get install -y \
+    pcscd \
     libpcsclite-dev \
     libpcsclite1 \
+    libccid \
     pcsc-tools \
     python3-pyscard \
     libusb-1.0-0-dev \
@@ -66,8 +68,6 @@ RUN chmod +x start.sh
 RUN useradd -m -u 1000 -s /bin/bash nfcuser && \
     chown -R nfcuser:nfcuser /app
 
-# Switch to non-root user
-USER nfcuser
-
-# Run the startup script
+# pcscd needs root to access USB devices, so we run as root
+# start.sh will start pcscd and then drop to nfcuser for the app
 CMD ["./start.sh"]
