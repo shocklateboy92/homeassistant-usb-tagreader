@@ -4,7 +4,7 @@ Like [adonno's](https://github.com/adonno/tagreader) tagreader component, but wi
 
 You can use it to build a similar [NFC Jukebox with Home Assistant](https://www.home-assistant.io/integrations/tag/) but without having to solder or 3D print anything 😁.
 
-**UPDATE:** It turns out this does not work on Debian Trixie (because it ships with a newer version of `pcscd`). Stick with Debian Bookworm (12) until I have time to update. If using RaspberryPi OS, grab the [Legacy](https://www.raspberrypi.com/software/operating-systems/#raspberry-pi-os-legacy-64-bit) version.
+**UPDATE:** It turns out this does not work on Debian Trixie (because it ships with a newer version of `pcscd`). If using a Raspberry Pi with Docker, the container now bundles its own `pcscd` so the host OS version doesn't matter anymore. See [Docker](#docker) below for the updated setup.
 
 ## Background
 
@@ -25,36 +25,25 @@ It might work with other NFC readers/tags, but I have no plans on using anything
 
 ## Installation
 
-This requires PC/SC to be installed on the host system. I tried putting it in the Docker container, but after a lot of lost time I just couldn't get it to work without at least having it _installed_ on the host system. At that point there's no benefit to running another version in the container.
+The Docker container now bundles `pcscd` internally and talks to the USB reader directly, so you no longer need PC/SC installed on the host. You just need to make sure nothing else on the host is trying to claim the reader.
 
-### PC/SC
+### Host Setup
 
-On Raspberry Pi, you can install PC/SC with the following command:
-
-```bash
-sudo apt-get install pcscd pcsc-tools
-```
-
-On [Arch Linux](https://wiki.archlinux.org/title/NFC), you can install PC/SC with the following command:
+If you previously had `pcscd` running on the host, disable it so it doesn't fight with the one in the container:
 
 ```bash
-sudo pacman -S pcsclite pcsc-tools
+sudo systemctl stop pcscd pcscd.socket
+sudo systemctl disable pcscd pcscd.socket
 ```
 
-Then you need to start the PC/SC daemon:
+You also need to blacklist the kernel NFC modules. Linux will try to claim the ACR122U's NFC chip via `pn533_usb`, which prevents `pcscd` from accessing it:
 
 ```bash
-sudo systemctl enable --now pcscd
+echo -e "blacklist pn533_usb\nblacklist pn533\nblacklist nfc" | sudo tee /etc/modprobe.d/blacklist-nfc.conf
+sudo rmmod pn533_usb pn533 nfc 2>/dev/null  # unload immediately if loaded
 ```
 
-You can verify that the PC/SC daemon is running with the following command:
-
-```bash
-pscs_scan
-```
-
-You should see your NFC reader listed, and when you tap an NFC tag, it should show up in the output.
-If this does not happen, `homeassistant-usb-tagreader` will not work so you need to troubleshoot your PC/SC installation.
+You can verify the reader is available with `lsusb` — you should see something like `072f:2200 Advanced Card Systems, Ltd ACR122U`.
 
 ### Home Assistant
 
@@ -64,7 +53,7 @@ You need to have the MQTT integration enabled and configured in Home Assistant. 
 
 ### Docker
 
-Finally, you need to run the Docker container with access to the host's PC/SC socket.
+The container needs privileged access to the USB bus so `pcscd` can talk to the reader.
 An example [docker-compose.yml](./docker-compose.yml) file is included in this repository. Here it is for reference:
 
 ```yaml
@@ -72,8 +61,9 @@ services:
   nfc-reader:
     image: ghcr.io/shocklateboy92/homeassistant-usb-tagreader:main
     container_name: nfc-reader
+    privileged: true
     volumes:
-      - /run/pcscd:/run/pcscd # Mount PCSC socket from host
+      - /dev/bus/usb:/dev/bus/usb # USB device passthrough
     restart: unless-stopped
     environment:
       - LOG_LEVEL=INFO # Set log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -82,6 +72,8 @@ services:
       - MQTT_USERNAME=your-username
       - MQTT_PASSWORD=your-password
 ```
+
+The container will start `pcscd` automatically on boot.
 
 `your-mqtt-broker` is usually your home assistant instance, which is typically `homeassistant.local`. If you use a non-standard port, you can specify an `MQTT_PORT` environment variable as well. You can see the full list of environment variables in the top of [mqtt_handler.py](./mqtt_handler.py).
 

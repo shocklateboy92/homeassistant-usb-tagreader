@@ -11,23 +11,17 @@ log_error() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] $1" >&2
 }
 
-# Check if a host pcscd socket is already mounted
-if [ -S /run/pcscd/pcscd.comm ]; then
-    log_info "Using host PCSCD daemon (socket found at /run/pcscd/pcscd.comm)"
-else
-    log_info "No host PCSCD socket found, starting pcscd inside container..."
-    mkdir -p /run/pcscd
-    pcscd --foreground --auto-exit --disable-polkit &
-    PCSCD_PID=$!
-    # Give pcscd a moment to start and detect readers
-    sleep 2
+log_info "Starting pcscd..."
+mkdir -p /run/pcscd
+pcscd --foreground --auto-exit --disable-polkit &
+PCSCD_PID=$!
+sleep 2
 
-    if ! kill -0 "$PCSCD_PID" 2>/dev/null; then
-        log_error "pcscd failed to start"
-        exit 1
-    fi
-    log_info "pcscd started (PID $PCSCD_PID)"
+if ! kill -0 "$PCSCD_PID" 2>/dev/null; then
+    log_error "pcscd failed to start"
+    exit 1
 fi
+log_info "pcscd started (PID $PCSCD_PID)"
 
 log_info "Starting NFC Reader application..."
 cd /app
